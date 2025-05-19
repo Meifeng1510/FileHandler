@@ -222,7 +222,7 @@ end
 function FileHandler.PromptExportValueCompressed<input>(fileName: string, content: input, level: number): boolean
 	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
 	if level == 3 then
-		error("Compression level 3 is not supported for exporting as binary source won't saved correctly by the plugin", 2)
+		error("Compression level 3 is not supported for exporting as binary source won't be saved correctly by the plugin", 2)
 	end
 
 	local successCompress, compressedValue = pcall(Compressor.Compress, content, level)
