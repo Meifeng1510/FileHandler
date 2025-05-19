@@ -125,9 +125,7 @@ end
 	@return (boolean): True if the export was successful, false otherwise.
 ]]
 function FileHandler.PromptExportFile(fileName: string, object: Instance): boolean
-	if not plugin then
-		error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2)
-	end
+	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
 	SelectionService:Set({ object })
 
 	local success = plugin:PromptSaveSelection(fileName)
@@ -145,9 +143,7 @@ end
 ]]
 function FileHandler.PromptImportText(fileTypeFilter: { string }?): string?
 	local file = StudioService:PromptImportFile(fileTypeFilter)
-	if not file then
-		return nil
-	end
+	if not file then return nil end
 	return file:GetBinaryContents()
 end
 
@@ -161,18 +157,24 @@ end
 	@return (boolean): True if the export was successful, false otherwise.
 ]]
 function FileHandler.PromptExportText(fileName: string, text: string): boolean
-	if not plugin then
-		error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2)
-	end
+	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
+
+	-- Roblox Studio automatically appends .lua to the filename for ModuleScripts when using PromptSaveSelection.
 	local textScript = Instance.new("ModuleScript")
-	-- Roblox Studio automatically appends .lua to the filename for ModuleScripts
-	-- when using PromptSaveSelection. If a different extension is desired
-	local successUpdateSource, err = ScriptEditorService:UpdateSourceAsync(textScript, function()
+
+	local maxAttempts = 5
+	local attempt = 0
+
+	ScriptEditorService:UpdateSourceAsync(textScript, function()
+		attempt += 1
+		if attempt > maxAttempts then return nil :: string? end
+		if attempt > 1 then warn(`Failed to update script source... Retrying (attempt {attempt})`) end
+
 		return text
 	end)
 
-	if not successUpdateSource then
-		warn("FileHandler.PromptExportText: Failed to update temporary script source:", err)
+	if attempt == maxAttempts then
+		warn("FileHandler.PromptExportText: Failed to update script source")
 		textScript:Destroy()
 		return false
 	end
@@ -197,9 +199,7 @@ end
 ]]
 function FileHandler.PromptImportCompressedValue<result>(fileTypeFilter: { string }?): (boolean, result?)
 	local content = FileHandler.PromptImportText(fileTypeFilter)
-	if not content then
-		return false, "No content or user canceled" :: any
-	end
+	if not content then return false, "No content or user canceled" :: any end
 
 	local success, value = pcall(Compressor.Decompress, content)
 	if not success then
@@ -220,9 +220,7 @@ end
 	@return (boolean): True if the export was successful, false otherwise.
 ]]
 function FileHandler.PromptExportValueCompressed<input>(fileName: string, content: input, level: number): boolean
-	if not plugin then
-		error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2)
-	end
+	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
 	local successCompress, compressedValue = pcall(Compressor.Compress, content, level)
 	if not successCompress then
 		warn("FileHandler.PromptExportValueCompressed: Failed to compress content - ", compressedValue) -- 'compressedValue' here is the error message
