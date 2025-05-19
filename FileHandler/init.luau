@@ -157,7 +157,7 @@ end
 	@return (boolean): True if the export was successful, false otherwise.
 ]]
 function FileHandler.PromptExportText(fileName: string, text: string): boolean
-	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
+	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 3) end
 
 	-- Roblox Studio automatically appends .lua to the filename for ModuleScripts when using PromptSaveSelection.
 	local textScript = Instance.new("ModuleScript")
@@ -172,7 +172,7 @@ function FileHandler.PromptExportText(fileName: string, text: string): boolean
 
 		return text
 	end)
-
+	
 	if attempt == maxAttempts then
 		warn("FileHandler.PromptExportText: Failed to update script source")
 		textScript:Destroy()
@@ -200,7 +200,7 @@ end
 function FileHandler.PromptImportCompressedValue<result>(fileTypeFilter: { string }?): (boolean, result?)
 	local content = FileHandler.PromptImportText(fileTypeFilter)
 	if not content then return false, "No content or user canceled" :: any end
-
+	
 	local success, value = pcall(Compressor.Decompress, content)
 	if not success then
 		return false, `FileHandler.PromptImportCompressedValue: Failed to decompress content - {value}` :: any
@@ -221,6 +221,10 @@ end
 ]]
 function FileHandler.PromptExportValueCompressed<input>(fileName: string, content: input, level: number): boolean
 	if not plugin then error("Plugin not set. Call FileHandler.SetPlugin(pluginInstance) first.", 2) end
+	if level == 3 then
+		error("Compression level 3 is not supported for exporting as binary source won't saved correctly by the plugin", 2)
+	end
+
 	local successCompress, compressedValue = pcall(Compressor.Compress, content, level)
 	if not successCompress then
 		warn("FileHandler.PromptExportValueCompressed: Failed to compress content - ", compressedValue) -- 'compressedValue' here is the error message
