@@ -24,15 +24,4 @@ integrating with compression utilities.
   any export operations.
 - Export functions for text content (`PromptExportText`, `PromptExportValueCompressed`)
   temporarily create a `ModuleScript` instance to leverage `plugin:PromptSaveSelection()`.
-  The default file extension for these operations will be `.lua`.
-
----
-
-## Benchmark Result
-
-  Original size: 1048576
-  Compressed size (lv1): 349640
-  Compressed size (lv2): 349605
-  Compressed size (lv3): 262204
-
-![image](https://github.com/user-attachments/assets/9139f82e-508c-47a0-9595-bc5174a42387)
+  The default file extension for these operations will be `.lua`
