@@ -208,7 +208,7 @@ local function base256ToBase64(str: string): string
 	local base256Len = stringLen - 1
 	local base64Len = math.ceil(base256Len * (4 / 3))
 
-	local resultTable = table.create(base64Len)
+	local resultTable = table.create(base64Len // 2)
 	local is3Bits = string.sub(str, 1, 1) == string.char(1)
 
 	local single_base256_map = BASE256_MAP
