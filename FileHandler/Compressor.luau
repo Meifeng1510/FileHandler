@@ -299,10 +299,9 @@ end
 
 local function writeValue(valueBuffer: buffer, offset: number, value: unknown): number
 	local valueType = type(value)
-
 	if valueType == "table" then
 		local length = #(value :: {})
-
+		
 		if length > 0 then -- array
 			buffer.writeu8(valueBuffer, offset, TYPE_ARRAY)
 			offset += 1
@@ -336,8 +335,8 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 	elseif valueType == "string" then
 		buffer.writeu8(valueBuffer, offset, TYPE_STRING)
 		offset += 1
-
-		local length = #(value :: string)
+		local stringLength = #(value :: string)
+		local length = stringLength
 
 		while length >= 2 ^ 7 do
 			local u7 = length % 2 ^ 7
@@ -349,8 +348,8 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 		buffer.writeu8(valueBuffer, offset, length * 2)
 		offset += 1
 		buffer.writestring(valueBuffer, offset, value :: string)
-
-		return offset + length
+		
+		return offset + stringLength
 	elseif valueType == "number" then
 		if math.floor(value :: number) == value and math.abs(value :: number) < 2 ^ 52 then -- is an integer
 			if value == 0 then
@@ -454,7 +453,8 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 	elseif valueType == "buffer" then
 		buffer.writeu8(valueBuffer, offset, TYPE_BUFFER)
 		offset += 1
-		local length = buffer.len(value :: buffer)
+		local bufferLength = buffer.len(value :: buffer)
+		local length = bufferLength
 
 		while length >= 2 ^ 7 do
 			local u7 = length % 2 ^ 7
@@ -465,9 +465,9 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 
 		buffer.writeu8(valueBuffer, offset, length * 2)
 		offset += 1
-
 		buffer.copy(valueBuffer, offset, value :: buffer)
-		return offset + length
+
+		return offset + bufferLength
 	elseif valueType == "nil" then
 		buffer.writeu8(valueBuffer, offset, TYPE_NIL)
 		return offset + 1
@@ -503,7 +503,6 @@ end
 local function deserializeValue(valueBuffer: buffer, offset: number): (any, number)
 	local valueType = buffer.readu8(valueBuffer, offset)
 	offset += 1
-
 	if valueType == TYPE_ARRAY then
 		local result = {}
 		local i = 1
