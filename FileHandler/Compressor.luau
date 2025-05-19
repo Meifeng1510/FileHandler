@@ -1249,6 +1249,15 @@ end
 --// Return \\--
 
 return {
+	ConvertToBuffer = function<input>(value: input): buffer
+		local totalSize = getSize(value)
+		if totalSize > BUFFER_MAX_SIZE then error("Value size exceeds buffer limit", 3) end
+
+		local valueBuffer = buffer.create(totalSize)
+		writeValue(valueBuffer, 0, value)
+
+		return valueBuffer
+	end,
 	Compress = compress,
 	Decompress = decompress,
 }
