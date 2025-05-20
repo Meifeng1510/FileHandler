@@ -7,7 +7,7 @@
 	Custom Buffer Serialization and Compression Library
 	-------------------------------------------------
 	Author: @meifeng_ft
-	Date: 2025-05-20 (Last Updated)
+	Date: 2025-05-19 (Last Updated)
 
 	Description:
 	This module provides functions to compress and decompress Luau values,
@@ -320,7 +320,7 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 	local valueType = type(value)
 	if valueType == "table" then
 		local length = #(value :: {})
-		
+
 		if length > 0 then -- array
 			buffer.writeu8(valueBuffer, offset, TYPE_ARRAY)
 			offset += 1
@@ -367,7 +367,7 @@ local function writeValue(valueBuffer: buffer, offset: number, value: unknown): 
 		buffer.writeu8(valueBuffer, offset, length * 2)
 		offset += 1
 		buffer.writestring(valueBuffer, offset, value :: string)
-		
+
 		return offset + stringLength
 	elseif valueType == "number" then
 		if math.floor(value :: number) == value and math.abs(value :: number) < 2 ^ 52 then -- is an integer
@@ -757,7 +757,7 @@ local BufferDecoder = {
 		local resultBuffer = buffer.create(totalSize)
 		buffer.copy(resultBuffer, (bufferAmount - 1) * JSON_ENCODE_MAX_SIZE, lastBuffer)
 		lastBuffer = nil
-		
+
 		local dataCursor = bufferAmount * 5 + 2
 		for i = 1, bufferAmount - 1 do
 			local lengthCursor = i * 5 - 3
@@ -817,7 +817,7 @@ local BufferDecoder = {
 		local bufferAmount = string.byte(string.sub(encodedData, 1, 1))
 		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 4 - 2, bufferAmount * 4 + 1)
 		local lastDataLength = unpackU32(lastDataLengthBytes)
-		
+
 		local lastBufferData = string.sub(encodedData, -lastDataLength)
 		local lastBufferEncodeType = string.sub(encodedData, -lastDataLength - 1, -lastDataLength - 1)
 		local lastBufferBase64Data = base256ToBase64(lastBufferData)
@@ -935,7 +935,7 @@ local BufferEncoder = {
 				result[tblSize] = encodedData
 				result[chunkAmount + 2] = packU32Base64(#encodedData)
 			end
-			
+
 			assert(#result == tblSize, "Buffer size mismatch")
 			return table.concat(result)
 		else
