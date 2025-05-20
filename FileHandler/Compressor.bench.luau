@@ -1,45 +1,55 @@
+--!strict
 --!native
-local oldModule = require(script.OldCompressor)
-local newModule = require(script.NewCompressor)
-local newerModule = require(script.NewerCompressor)
 
-local testSource = buffer.create(2 ^ 20)
-for i = 0, buffer.len(testSource) / 2 - 1 do
-	buffer.writeu16(testSource, i, math.random(0, 2 ^ 16 - 1))
+--[[ 
+	Benchmark Template: Compressor Module
+
+	Purpose:
+		Designed to be used with the Benchmarker plugin to measure the performance
+		of compression and decompression operations at different compression levels.
+
+	Notes:
+		- You may need to adjust `JSON_ENCODE_MAX_SIZE` in the Compressor module
+		  to ensure compatibility with large buffer sizes during performance testing.
+		- The buffer created is filled with pseudo-random 16-bit unsigned integers.
+
+	Usage:
+		Run this script within the Benchmarker plugin environment. It provides six
+		benchmark functions: Compress and Decompress at levels 1, 2, and 3.
+]]
+
+local Compressor = require(script.Compressor)
+
+-- Initialize random seed and test input buffer
+local randomObject = Random.new(0)
+local testSize = 2 ^ 20 -- 1 MiB
+local testSource = buffer.create(testSize)
+
+-- Fill buffer with random 32-bit unsigned values
+for i = 0, testSize // 4 - 1 do
+	buffer.writeu16(testSource, i, randomObject:NextInteger(0, 2 ^ 32 - 1))
 end
 
-local oldLv1Compressed = oldModule.Compress(testSource, 1)
-local newLv1Compressed = newModule.Compress(testSource, 1)
-local newerLv1Compressed = newerModule.Compress(testSource, 1)
+-- Precompute compressed buffers for each compression level
+local lv1Compressed = Compressor.Compress(testSource, 1)
+local lv2Compressed = Compressor.Compress(testSource, 2)
+local lv3Compressed = Compressor.Compress(testSource, 3)
 
-local oldLv2Compressed = oldModule.Compress(testSource, 2)
-local newLv2Compressed = newModule.Compress(testSource, 2)
-local newerLv2Compressed = newerModule.Compress(testSource, 2)
-
+-- Validate decompression output matches original source
 local sourceStr = buffer.tostring(testSource)
-assert(buffer.tostring(oldModule.Decompress(oldLv1Compressed)) == sourceStr)
-assert(buffer.tostring(newModule.Decompress(newLv1Compressed)) == sourceStr)
-assert(buffer.tostring(newerModule.Decompress(newerLv1Compressed)) == sourceStr)
-assert(buffer.tostring(oldModule.Decompress(oldLv2Compressed)) == sourceStr)
-assert(buffer.tostring(newModule.Decompress(newLv2Compressed)) == sourceStr)
-assert(buffer.tostring(newerModule.Decompress(newerLv2Compressed)) == sourceStr)
+assert(buffer.tostring(Compressor.Decompress(lv1Compressed)) == sourceStr, "Decompression failed for level 1")
+assert(buffer.tostring(Compressor.Decompress(lv2Compressed)) == sourceStr, "Decompression failed for level 2")
+assert(buffer.tostring(Compressor.Decompress(lv3Compressed)) == sourceStr, "Decompression failed for level 3")
 
-print(oldLv1Compressed == newLv1Compressed)
-print(newLv1Compressed == newerLv1Compressed)
-
-print(oldLv2Compressed == newLv2Compressed)
-print(newLv2Compressed == newerLv2Compressed)
-
-print(#oldLv1Compressed)
-print(#newLv1Compressed)
-print(#newerLv1Compressed)
-print(#oldLv2Compressed)
-print(#newLv2Compressed)
-print(#newerLv2Compressed)
+-- Log sizes for manual inspection
+print("Original size:", #sourceStr)
+print("Compressed size (lv1):", #lv1Compressed)
+print("Compressed size (lv2):", #lv2Compressed)
+print("Compressed size (lv3):", #lv3Compressed)
 
 return {
 	ParameterGenerator = function()
-		return testSource
+		return
 	end,
 
 	BeforeAll = function() end,
@@ -69,58 +79,42 @@ return {
 	------------------------------------------------------------------------------------
 
 	Functions = {
-		["Old Compress lv1"] = function(Profiler, value)
-			oldModule.Compress(value, 1)
-		end,
-
-		["New Compress lv1"] = function(Profiler, value)
-			newModule.Compress(value, 1)
-		end,
-
-		["Newer Compress lv1"] = function(Profiler, value)
-			newerModule.Compress(value, 1)
+		
+		["Compress lv1"] = function(Profiler)
+			Compressor.Compress(testSource, 1)
 		end,
 
 		---
 
-		--["Old Decompress lv1"] = function(Profiler, value)
-		--	oldModule.Decompress(oldLv1Compressed)
-		--end,
-
-		--["New Decompress lv1"] = function(Profiler, value)
-		--	newModule.Decompress(newLv1Compressed)
-		--end,
-
-		--["Newer Decompress lv1"] = function(Profiler, value)
-		--	newerModule.Decompress(newLv1Compressed)
-		--end,
-
-		---
-
-		["Old Compress lv2"] = function(Profiler, value)
-			oldModule.Compress(value, 2)
-		end,
-
-		["New Compress lv2"] = function(Profiler, value)
-			newModule.Compress(value, 2)
-		end,
-
-		["Newer Compress lv2"] = function(Profiler, value)
-			newerModule.Compress(value, 2)
+		["Decompress lv1"] = function(Profiler)
+			Compressor.Decompress(lv1Compressed)
 		end,
 
 		---
 
-		--["Old Decompress lv2"] = function(Profiler, value)
-		--	oldModule.Decompress(oldLv1Compressed)
-		--end,
+		["Compress lv2"] = function(Profiler)
+			Compressor.Compress(testSource, 2)
+		end,
 
-		--["New Decompress lv2"] = function(Profiler, value)
-		--	newModule.Decompress(newLv1Compressed)
-		--end,
+		---
 
-		--["Newer Decompress lv2"] = function(Profiler, value)
-		--	newerModule.Decompress(newLv1Compressed)
-		--end,
+		["Decompress lv2"] = function(Profiler)
+			Compressor.Decompress(lv2Compressed)
+		end,
+
+		---
+
+		["Compress lv3"] = function(Profiler)
+			Compressor.Compress(testSource, 3)
+		end,
+
+		---
+
+		["Decompress lv3"] = function(Profiler)
+			Compressor.Decompress(lv3Compressed)
+		end,
+
+		---
+
 	},
 }
