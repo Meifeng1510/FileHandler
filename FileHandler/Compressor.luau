@@ -7,7 +7,7 @@
 	Custom Buffer Serialization and Compression Library
 	-------------------------------------------------
 	Author: @meifeng_ft
-	Date: 2025-05-19 (Last Updated)
+	Date: 2025-05-20 (Last Updated)
 
 	Description:
 	This module provides functions to compress and decompress Luau values,
@@ -128,6 +128,7 @@ local BUFFER_MAX_SIZE = 2 ^ 30 -- 1,073,741,824 bytes (1 GiB). The largest size 
 
 -- buffer is not used as strings are more efficient in native
 -- local U32_BUFFER = buffer.create(4)
+local packTable = table.create(5)
 
 --// Functions \\--
 
@@ -144,6 +145,24 @@ local function unpackU32(str: string): number
 	return a1 * 2 ^ 24 + a2 * 2 ^ 16 + a3 * 2 ^ 8 + a4
 	-- buffer.writestring(U32_BUFFER, 0, str)
 	-- return buffer.readu32(U32_BUFFER, 0)
+end
+
+local function packU32Base64(value: number): string
+	packTable[1] = BASE64_MAP[value // 2 ^ 24 % 2 ^ 6]
+	packTable[2] = BASE64_MAP[value // 2 ^ 18 % 2 ^ 6]
+	packTable[3] = BASE64_MAP[value // 2 ^ 12 % 2 ^ 6]
+	packTable[4] = BASE64_MAP[value // 2 ^ 6 % 2 ^ 6]
+	packTable[5] = BASE64_MAP[value % 2 ^ 6]
+	return table.concat(packTable)
+end
+
+local function unpackU32Base64(str: string): number
+	local a1 = BASE64_MAP[string.sub(str, 1, 1)]
+	local a2 = BASE64_MAP[string.sub(str, 2, 2)]
+	local a3 = BASE64_MAP[string.sub(str, 3, 3)]
+	local a4 = BASE64_MAP[string.sub(str, 4, 4)]
+	local a5 = BASE64_MAP[string.sub(str, 5, 5)]
+	return a1 * 2 ^ 24 + a2 * 2 ^ 18 + a3 * 2 ^ 12 + a4 * 2 ^ 6 + a5
 end
 
 local function base64ToBase256(str: string): string
@@ -675,9 +694,9 @@ local ZSTD_BASE64_DATA_END_OFFSET = -3 -- Same as above.
 ]]
 local BufferDecoder = {
 	[SPLIT_JSON_ENCODE_ID] = function(encodedData: string)
-		local bufferAmount = string.byte(string.sub(encodedData, 1, 1))
-		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 4 - 2, bufferAmount * 4 + 1)
-		local lastDataLength = unpackU32(lastDataLengthBytes)
+		local bufferAmount = BASE64_MAP[string.sub(encodedData, 1, 1)]
+		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 5 - 3, bufferAmount * 5 + 1)
+		local lastDataLength = unpackU32Base64(lastDataLengthBytes)
 
 		local lastBufferData = string.sub(encodedData, -lastDataLength)
 		local lastBuffer = HttpService:JSONDecode(lastBufferData)
@@ -691,11 +710,11 @@ local BufferDecoder = {
 		buffer.copy(resultBuffer, (bufferAmount - 1) * JSON_ENCODE_MAX_SIZE, lastBuffer)
 		lastBuffer = nil
 
-		local dataCursor = bufferAmount * 4 + 2
+		local dataCursor = bufferAmount * 5 + 2
 		for i = 1, bufferAmount - 1 do
-			local lengthCursor = i * 4 - 2
-			local lengthBytes = string.sub(encodedData, lengthCursor, lengthCursor + 3)
-			local dataLength = unpackU32(lengthBytes)
+			local lengthCursor = i * 5 - 3
+			local lengthBytes = string.sub(encodedData, lengthCursor, lengthCursor + 4)
+			local dataLength = unpackU32Base64(lengthBytes)
 
 			local bufferData = string.sub(encodedData, dataCursor, dataCursor + dataLength - 1)
 			dataCursor += dataLength
@@ -716,9 +735,9 @@ local BufferDecoder = {
 	end,
 
 	[SPLIT_BASE64_ENCODE_ID] = function(encodedData: string)
-		local bufferAmount = string.byte(string.sub(encodedData, 1, 1))
-		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 4 - 2, bufferAmount * 4 + 1)
-		local lastDataLength = unpackU32(lastDataLengthBytes)
+		local bufferAmount = BASE64_MAP[string.sub(encodedData, 1, 1)]
+		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 5 - 3, bufferAmount * 5 + 1)
+		local lastDataLength = unpackU32Base64(lastDataLengthBytes)
 
 		local lastBufferData = string.sub(encodedData, -lastDataLength)
 		local lastBufferEncodeType = string.sub(encodedData, -lastDataLength - 1, -lastDataLength - 1)
@@ -738,12 +757,12 @@ local BufferDecoder = {
 		local resultBuffer = buffer.create(totalSize)
 		buffer.copy(resultBuffer, (bufferAmount - 1) * JSON_ENCODE_MAX_SIZE, lastBuffer)
 		lastBuffer = nil
-
-		local dataCursor = bufferAmount * 4 + 2
+		
+		local dataCursor = bufferAmount * 5 + 2
 		for i = 1, bufferAmount - 1 do
-			local lengthCursor = i * 4 - 2
-			local lengthBytes = string.sub(encodedData, lengthCursor, lengthCursor + 3)
-			local dataLength = unpackU32(lengthBytes)
+			local lengthCursor = i * 5 - 3
+			local lengthBytes = string.sub(encodedData, lengthCursor, lengthCursor + 4)
+			local dataLength = unpackU32Base64(lengthBytes)
 
 			local bufferEncodeType = string.sub(encodedData, dataCursor, dataCursor)
 			local bufferData = string.sub(encodedData, dataCursor + 1, dataCursor + dataLength)
@@ -798,7 +817,7 @@ local BufferDecoder = {
 		local bufferAmount = string.byte(string.sub(encodedData, 1, 1))
 		local lastDataLengthBytes = string.sub(encodedData, bufferAmount * 4 - 2, bufferAmount * 4 + 1)
 		local lastDataLength = unpackU32(lastDataLengthBytes)
-
+		
 		local lastBufferData = string.sub(encodedData, -lastDataLength)
 		local lastBufferEncodeType = string.sub(encodedData, -lastDataLength - 1, -lastDataLength - 1)
 		local lastBufferBase64Data = base256ToBase64(lastBufferData)
@@ -887,10 +906,10 @@ local BufferEncoder = {
 				+ 1 -- buffer amount
 				+ 1 -- encode id
 
-			--// format: `{encodeType}{bufferAmount}{json1Length}{json2Length}...{buffer1Data}{buffer2Data}...`
+			--// format: `{encodeType}{chunkAmount}{json1Length}{json2Length}...{buffer1Data}{buffer2Data}...`
 			local result = table.create(tblSize)
 			result[1] = SPLIT_JSON_ENCODE_ID
-			result[2] = string.char(chunkAmount)
+			result[2] = BASE64_MAP[chunkAmount]
 
 			local offset = chunkAmount + 2
 
@@ -901,7 +920,7 @@ local BufferEncoder = {
 				local encodedData = HttpService:JSONEncode(tempBuffer)
 
 				result[i + offset] = encodedData
-				result[i + 2] = packU32(#encodedData)
+				result[i + 2] = packU32Base64(#encodedData)
 			end
 
 			do
@@ -914,9 +933,9 @@ local BufferEncoder = {
 				local encodedData = HttpService:JSONEncode(tempBuffer)
 
 				result[tblSize] = encodedData
-				result[chunkAmount + 2] = packU32(#encodedData)
+				result[chunkAmount + 2] = packU32Base64(#encodedData)
 			end
-
+			
 			assert(#result == tblSize, "Buffer size mismatch")
 			return table.concat(result)
 		else
@@ -942,10 +961,10 @@ local BufferEncoder = {
 				+ 1 -- 1 index for encode type
 				+ 1 -- 1 index for buffer amount
 
-			--// format: `{encodeType}{bufferAmount}{encodedData1Length}{encodedData2Length}...{encodedData1Data}{encodedData2Data}...`
+			--// format: `{encodeType}{chunkAmount}{encodedData1Length}{encodedData2Length}...{encodedData1Data}{encodedData2Data}...`
 			local result = table.create(tblSize)
 			result[1] = SPLIT_BASE64_ENCODE_ID
-			result[2] = string.char(chunkAmount)
+			result[2] = BASE64_MAP[chunkAmount]
 
 			local offset = chunkAmount + 1
 
@@ -965,7 +984,7 @@ local BufferEncoder = {
 				end
 
 				result[i * 2 + offset + 1] = base64Data
-				result[i + 2] = packU32(#base64Data)
+				result[i + 2] = packU32Base64(#base64Data)
 			end
 
 			do
@@ -987,7 +1006,7 @@ local BufferEncoder = {
 				end
 
 				result[tblSize] = base64Data
-				result[chunkAmount + 2] = packU32(#base64Data)
+				result[chunkAmount + 2] = packU32Base64(#base64Data)
 			end
 
 			assert(#result == tblSize, "Buffer size mismatch")
@@ -1023,7 +1042,7 @@ local BufferEncoder = {
 				+ 1 -- 1 index for encode type
 				+ 1 -- 1 index for buffer amount
 
-			--// format: `{encodeType}{bufferAmount}{encodedData1Length}{encodedData2Length}...{encodedData1Data}{encodedData2Data}...`
+			--// format: `{encodeType}{chunkAmount}{encodedData1Length}{encodedData2Length}...{encodedData1Data}{encodedData2Data}...`
 			local result = table.create(tblSize)
 			result[1] = SPLIT_BASE256_ENCODE_ID
 			result[2] = string.char(chunkAmount)
@@ -1090,6 +1109,7 @@ local BufferEncoder = {
 				end
 
 				result[tblSize] = base256Data
+				print(#base256Data)
 				result[chunkAmount + 2] = packU32(#base256Data)
 			end
 
